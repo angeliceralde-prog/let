@@ -23,7 +23,6 @@
     .btn-gold:disabled{opacity:.4;cursor:not-allowed}
     .btn-outline{background:transparent;color:#6b5a3e;border:1.5px solid #c9a96e;border-radius:10px;padding:11px 26px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;transition:all .2s}
     .btn-outline:hover{background:#fdf5e8}
-    .btn-danger{background:#ef5350;color:#fff;border:none;border-radius:10px;padding:12px 28px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer}
     input[type="text"],input[type="email"],input[type="password"]{width:100%;padding:12px 16px;border:1.5px solid #e0d9cc;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;background:#faf9f6;outline:none;transition:border-color .2s}
     input:focus{border-color:#c9a96e;background:#fff}
     .badge-free{background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:.4px}
@@ -51,7 +50,6 @@
     .fade-in{animation:fadeIn .3s ease}
     @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     .tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;background:#f0ece4;color:#6b5a3e}
-    /* Q-grid for exam navigator */
     .q-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px}
     .q-dot{width:38px;height:38px;border-radius:8px;border:1.5px solid #e0d9cc;background:#faf9f6;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b5a3e;transition:all .15s}
     .q-dot:hover{border-color:#c9a96e}
@@ -59,18 +57,14 @@
     .q-dot.current{background:#5c6bc0;border-color:#5c6bc0;color:#fff}
     .q-dot.flagged{background:#fff8e1;border-color:#f9a825;color:#f57f17}
     .q-dot.flagged.answered{background:#fff3cd;border-color:#f9a825}
-    /* Timer */
     .timer-normal{color:#2c1f0e;font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
     .timer-warning{color:#e65100;font-weight:700;font-size:20px;font-variant-numeric:tabular-nums;animation:pulse 1s ease-in-out infinite}
     .timer-danger{color:#c62828;font-weight:700;font-size:20px;font-variant-numeric:tabular-nums;animation:pulse .5s ease-in-out infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-    /* Exam score breakdown */
     .score-bar-wrap{height:10px;background:#f0ece4;border-radius:5px;overflow:hidden;flex:1}
     .score-bar-fill{height:100%;border-radius:5px;transition:width .6s ease}
-    /* Flagged indicator */
     .flag-btn{background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;transition:background .15s}
     .flag-btn:hover{background:#fff8e1}
-    /* Sidebar */
     .exam-layout{display:grid;grid-template-columns:1fr 240px;gap:20px;max-width:960px;margin:0 auto;padding:0 16px 48px}
     @media(max-width:720px){.exam-layout{grid-template-columns:1fr}}
     .sidebar-panel{display:block}
@@ -84,23 +78,19 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-// ── Supabase ─────────────────────────────────────────
 const SUPABASE_URL = 'https://wezcbwlmovtlkdhrnwdq.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlemNid2xtb3Z0bGtkaHJud2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NjIxODMsImV4cCI6MjA5NjEzODE4M30.7BkfNEEhzr1N-qwaRgxJvm8KoEw7mhTQKNzwkpE56K8';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const FREE_LIMIT = 5;
-// Real LET: 150 items total (40 GenEd, 60 ProfEd, 50 Major)
-// We scale to available questions — 80 total mock exam
 const EXAM_CONFIG = {
   "General Education":           { count: 20, weight: 25 },
   "Professional Education":      { count: 30, weight: 37.5 },
   "Major (Elementary Education)":{ count: 15, weight: 18.75 },
   "Major (Secondary Education)": { count: 15, weight: 18.75 },
 };
-const EXAM_TOTAL_MINUTES = 80; // 1 min per question
+const EXAM_TOTAL_MINUTES = 80;
 
-// ── Question Bank ────────────────────────────────────
 const questionBank = {
   "Professional Education": [
     {q:"Which learning theory states that new knowledge is built upon existing knowledge?",choices:["Behaviorism","Constructivism","Connectivism","Cognitivism"],answer:"Constructivism",rationale:"Constructivism (Piaget, Vygotsky) posits learners construct meaning from experience."},
@@ -211,8 +201,23 @@ const categoryMeta = {
 
 // ── Auth helpers ─────────────────────────────────────
 async function signIn(e,p){return supabase.auth.signInWithPassword({email:e,password:p})}
-async function signUp(e,p){return supabase.auth.signUp({email:e,password:p})}
 async function signOut(){await supabase.auth.signOut()}
+
+async function signUp(email, password) {
+  // 1. Create auth account
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) return { error };
+
+  // 2. Manually insert into approved_users with 'pending'
+  //    (in case trigger hasn't fired yet or email not confirmed)
+  await supabase.from('approved_users').upsert(
+    { email, status: 'pending' },
+    { onConflict: 'email', ignoreDuplicates: true }
+  );
+
+  return { data };
+}
+
 async function checkAccess(email){
   const {data}=await supabase.from('approved_users').select('email,status').eq('email',email).maybeSingle();
   return data;
@@ -234,49 +239,63 @@ function fmtTime(s){
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
-// ── Build exam questions ─────────────────────────────
 function buildExamQuestions(){
-  const all=[];
-  let qNum=1;
+  const all=[];let qNum=1;
   Object.entries(EXAM_CONFIG).forEach(([cat,cfg])=>{
     const pool=shuffle(questionBank[cat]);
-    const picked=pool.slice(0,cfg.count);
-    picked.forEach(q=>{all.push({...q,category:cat,examNum:qNum++})});
+    pool.slice(0,cfg.count).forEach(q=>{all.push({...q,category:cat,examNum:qNum++})});
   });
-  return all; // keep in category order (like real LET)
+  return all;
 }
 
 // ══════════════════════════════════════════════════════
-// LOCK MODAL
+// LOCK MODAL — fixed sign-up flow
 // ══════════════════════════════════════════════════════
 function LockModal({onClose,onLoginSuccess,reason}){
-  const [mode,setMode]=useState(reason==='pending'?'pending':'gate');
+  const [mode,setMode]=useState(reason==='pending'?'pending':reason==='exam-gate'?'exam-gate':'gate');
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
   const [loading,setLoading]=useState(false);
   const [err,setErr]=useState('');
+  const [signupEmail,setSignupEmail]=useState('');
 
   const doLogin=async()=>{
     if(!email||!password)return;
     setLoading(true);setErr('');
     const {data,error}=await signIn(email,password);
-    if(error){setErr(error.message);setLoading(false);return;}
-    const access=await checkAccess(email);
+    if(error){
+      // Friendly error messages
+      let msg=error.message;
+      if(msg.includes('Invalid login credentials'))msg='Incorrect email or password. Please try again.';
+      if(msg.includes('Email not confirmed'))msg='Please confirm your email first, or contact the admin.';
+      setErr(msg);setLoading(false);return;
+    }
+    const access=await checkAccess(data.user.email);
     setLoading(false);
     if(access&&access.status==='approved'){onLoginSuccess(data.user,true);}
-    else{setMode('pending');}
+    else{setMode('pending');setSignupEmail(data.user.email);}
   };
+
   const doSignup=async()=>{
     if(!email||!password)return;
+    if(password.length<6){setErr('Password must be at least 6 characters.');return;}
     setLoading(true);setErr('');
-    const {error}=await signUp(email,password);
-    if(error){setErr(error.message);setLoading(false);return;}
-    setLoading(false);setMode('pending');
+    const {data,error}=await signUp(email,password);
+    if(error){
+      let msg=error.message;
+      if(msg.includes('already registered')||msg.includes('already been registered'))
+        msg='This email is already registered. Please log in instead.';
+      setErr(msg);setLoading(false);return;
+    }
+    setSignupEmail(email);
+    setLoading(false);
+    setMode('pending');
   };
 
   return(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box fade-in" onClick={e=>e.stopPropagation()}>
+
         {mode==='gate'&&<>
           <div style={{textAlign:'center',marginBottom:28}}>
             <div style={{fontSize:48,marginBottom:12}}>🔒</div>
@@ -289,11 +308,12 @@ function LockModal({onClose,onLoginSuccess,reason}){
             <button onClick={onClose} style={{background:'none',border:'none',color:'#999',cursor:'pointer',padding:'8px',fontSize:14}}>← Maybe later</button>
           </div>
         </>}
+
         {mode==='exam-gate'&&<>
           <div style={{textAlign:'center',marginBottom:28}}>
             <div style={{fontSize:48,marginBottom:12}}>📋</div>
             <h2 className="serif" style={{fontSize:26,margin:'0 0 8px'}}>Full Access Required</h2>
-            <p style={{color:'#6b5a3e',margin:0,lineHeight:1.6}}>The <strong>Mock Board Exam</strong> requires a verified account. Log in or sign up to take the full 80-question timed exam.</p>
+            <p style={{color:'#6b5a3e',margin:0,lineHeight:1.6}}>The <strong>Mock Board Exam</strong> requires a verified account.</p>
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <button className="btn-gold" onClick={()=>setMode('login')}>Log In</button>
@@ -301,33 +321,52 @@ function LockModal({onClose,onLoginSuccess,reason}){
             <button onClick={onClose} style={{background:'none',border:'none',color:'#999',cursor:'pointer',padding:'8px',fontSize:14}}>← Back</button>
           </div>
         </>}
+
         {(mode==='login'||mode==='signup')&&<>
-          <button onClick={()=>{setMode('gate');setErr('')}} style={{background:'none',border:'none',color:'#999',cursor:'pointer',marginBottom:16,fontSize:13}}>← Back</button>
-          <h2 className="serif" style={{fontSize:24,marginBottom:24}}>{mode==='login'?'Welcome back':'Create account'}</h2>
+          <button onClick={()=>{setMode(reason==='exam-gate'?'exam-gate':'gate');setErr('');}} style={{background:'none',border:'none',color:'#999',cursor:'pointer',marginBottom:16,fontSize:13}}>← Back</button>
+          <h2 className="serif" style={{fontSize:24,marginBottom:6}}>{mode==='login'?'Welcome back':'Create account'}</h2>
+          <p style={{fontSize:13,color:'#999',marginBottom:24,marginTop:0}}>
+            {mode==='login'?'Log in to access your full review.':'Sign up — the admin will approve your account.'}
+          </p>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
-            <div><label style={{fontSize:13,color:'#6b5a3e',marginBottom:6,display:'block'}}>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com"/></div>
-            <div><label style={{fontSize:13,color:'#6b5a3e',marginBottom:6,display:'block'}}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&(mode==='login'?doLogin():doSignup())}/></div>
+            <div>
+              <label style={{fontSize:13,color:'#6b5a3e',marginBottom:6,display:'block'}}>Email</label>
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com"/>
+            </div>
+            <div>
+              <label style={{fontSize:13,color:'#6b5a3e',marginBottom:6,display:'block'}}>Password {mode==='signup'&&<span style={{color:'#bbb'}}>(min. 6 characters)</span>}</label>
+              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••"
+                onKeyDown={e=>e.key==='Enter'&&(mode==='login'?doLogin():doSignup())}/>
+            </div>
             {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'10px 14px',borderRadius:8,fontSize:13}}>{err}</div>}
             <button className="btn-gold" disabled={loading||!email||!password} onClick={mode==='login'?doLogin:doSignup}>
-              {loading?<span className="spinner"/>:mode==='login'?'Log In':'Sign Up'}
+              {loading?<span className="spinner"/>:mode==='login'?'Log In':'Create Account'}
             </button>
             <p style={{fontSize:13,color:'#999',textAlign:'center',margin:0}}>
               {mode==='login'?"Don't have an account? ":"Already have one? "}
-              <span style={{color:'#c9a96e',cursor:'pointer'}} onClick={()=>{setMode(mode==='login'?'signup':'login');setErr('')}}>{mode==='login'?'Sign up':'Log in'}</span>
+              <span style={{color:'#c9a96e',cursor:'pointer'}} onClick={()=>{setMode(mode==='login'?'signup':'login');setErr('');}}>
+                {mode==='login'?'Sign up':'Log in'}
+              </span>
             </p>
           </div>
         </>}
+
         {mode==='pending'&&<>
           <div style={{textAlign:'center'}}>
             <div style={{fontSize:52,marginBottom:16}}>⏳</div>
-            <h2 className="serif" style={{fontSize:24,marginBottom:12}}>Access Pending</h2>
-            <p style={{color:'#6b5a3e',lineHeight:1.7,marginBottom:24}}>Your account has been created! Please <strong>ask the admin</strong> to approve your email address.</p>
-            <div style={{background:'#fdf5e8',border:'1px dashed #c9a96e',borderRadius:12,padding:'16px 20px',marginBottom:24}}>
-              <p style={{margin:0,fontSize:14,color:'#6b5a3e'}}>📧 Registered as: <strong>{email}</strong><br/><span style={{fontSize:13,color:'#999'}}>Share this email with the admin.</span></p>
+            <h2 className="serif" style={{fontSize:24,marginBottom:12}}>Account Created!</h2>
+            <p style={{color:'#6b5a3e',lineHeight:1.7,marginBottom:20}}>
+              Your account has been registered. Please wait for the <strong>admin to approve</strong> your email before you can access the full review.
+            </p>
+            <div style={{background:'#fdf5e8',border:'1px dashed #c9a96e',borderRadius:12,padding:'14px 18px',marginBottom:24,textAlign:'left'}}>
+              <p style={{margin:'0 0 4px',fontSize:13,color:'#6b5a3e',fontWeight:600}}>📧 Registered email:</p>
+              <p style={{margin:0,fontSize:14,color:'#1a1208'}}>{signupEmail||email}</p>
+              <p style={{margin:'8px 0 0',fontSize:12,color:'#999'}}>Share this with your admin to get approved.</p>
             </div>
-            <button className="btn-gold" onClick={onClose}>Close</button>
+            <button className="btn-gold" onClick={onClose}>Got it</button>
           </div>
         </>}
+
       </div>
     </div>
   );
@@ -336,11 +375,10 @@ function LockModal({onClose,onLoginSuccess,reason}){
 // ══════════════════════════════════════════════════════
 // EXAM SETUP MODAL
 // ══════════════════════════════════════════════════════
-function ExamSetupModal({onClose,onStart,major}){
-  const [selectedMajor,setSelectedMajor]=useState(major||'Elementary');
+function ExamSetupModal({onClose,onStart}){
+  const [selectedMajor,setSelectedMajor]=useState('Elementary');
   const cats=Object.entries(EXAM_CONFIG);
   const totalQ=cats.reduce((s,[,c])=>s+c.count,0);
-
   return(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box-wide fade-in" onClick={e=>e.stopPropagation()} style={{maxWidth:560}}>
@@ -352,8 +390,6 @@ function ExamSetupModal({onClose,onStart,major}){
             <p style={{margin:0,color:'#999',fontSize:14}}>Simulated LET — {totalQ} questions · {EXAM_TOTAL_MINUTES} minutes</p>
           </div>
         </div>
-
-        {/* Breakdown table */}
         <div className="card" style={{padding:'20px 24px',marginBottom:24}}>
           <p style={{margin:'0 0 14px',fontWeight:600,fontSize:14,color:'#2c1f0e'}}>Exam Breakdown</p>
           {cats.map(([cat,cfg])=>(
@@ -369,8 +405,6 @@ function ExamSetupModal({onClose,onStart,major}){
             </div>
           ))}
         </div>
-
-        {/* Major selector */}
         <div style={{marginBottom:24}}>
           <p style={{margin:'0 0 10px',fontWeight:600,fontSize:14,color:'#2c1f0e'}}>Your Major</p>
           <div style={{display:'flex',gap:10}}>
@@ -382,8 +416,6 @@ function ExamSetupModal({onClose,onStart,major}){
             ))}
           </div>
         </div>
-
-        {/* Rules */}
         <div style={{background:'#fdf5e8',border:'1px solid #e8d9b8',borderRadius:12,padding:'14px 18px',marginBottom:28}}>
           <p style={{margin:'0 0 8px',fontWeight:600,fontSize:13,color:'#6b5a3e'}}>📌 Exam Rules</p>
           <ul style={{margin:0,paddingLeft:18,fontSize:13,color:'#6b5a3e',lineHeight:1.8}}>
@@ -394,7 +426,6 @@ function ExamSetupModal({onClose,onStart,major}){
             <li>Passing score is <strong>75%</strong> (LET standard).</li>
           </ul>
         </div>
-
         <button className="btn-gold" style={{width:'100%',fontSize:16,padding:'16px'}} onClick={()=>onStart(selectedMajor)}>
           Start Exam →
         </button>
@@ -406,44 +437,29 @@ function ExamSetupModal({onClose,onStart,major}){
 // ══════════════════════════════════════════════════════
 // MOCK BOARD EXAM
 // ══════════════════════════════════════════════════════
-function MockExam({onBack,onFinish,major}){
+function MockExam({onFinish}){
   const [questions]=useState(()=>buildExamQuestions());
   const [current,setCurrent]=useState(0);
-  const [answers,setAnswers]=useState({}); // idx -> choice
+  const [answers,setAnswers]=useState({});
   const [flagged,setFlagged]=useState(new Set());
   const [timeLeft,setTimeLeft]=useState(EXAM_TOTAL_MINUTES*60);
   const [showNav,setShowNav]=useState(false);
   const [showConfirm,setShowConfirm]=useState(false);
-  const [submitted,setSubmitted]=useState(false);
   const timerRef=useRef(null);
   const startTimeRef=useRef(Date.now());
 
   useEffect(()=>{
     timerRef.current=setInterval(()=>{
-      setTimeLeft(t=>{
-        if(t<=1){clearInterval(timerRef.current);handleSubmit(true);return 0;}
-        return t-1;
-      });
+      setTimeLeft(t=>{if(t<=1){clearInterval(timerRef.current);doSubmit();return 0;}return t-1;});
     },1000);
     return()=>clearInterval(timerRef.current);
   },[]);
 
-  const handleAnswer=(choice)=>{
-    setAnswers(a=>({...a,[current]:choice}));
-  };
-  const toggleFlag=()=>{
-    setFlagged(f=>{const n=new Set(f);n.has(current)?n.delete(current):n.add(current);return n;});
-  };
-
-  const handleSubmit=(autoSubmit=false)=>{
+  const doSubmit=()=>{
     clearInterval(timerRef.current);
     const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);
-    const results=questions.map((q,i)=>({
-      ...q,
-      selected:answers[i]||null,
-      correct:answers[i]===q.answer,
-    }));
-    onFinish(results,elapsed,EXAM_TOTAL_MINUTES*60-timeLeft);
+    const results=questions.map((q,i)=>({...q,selected:answers[i]||null,correct:answers[i]===q.answer}));
+    onFinish(results,elapsed);
   };
 
   const q=questions[current];
@@ -460,7 +476,6 @@ function MockExam({onBack,onFinish,major}){
         </div>
         <div className="progress-bar"><div className="progress-fill-exam" style={{width:`${Math.round(answeredCount/total*100)}%`}}/></div>
       </div>
-
       <div className="card" style={{padding:'16px 20px',marginBottom:12}}>
         <p style={{margin:'0 0 10px',fontSize:13,fontWeight:600,color:'#2c1f0e'}}>Question Navigator</p>
         <div className="q-grid">
@@ -482,16 +497,12 @@ function MockExam({onBack,onFinish,major}){
           ))}
         </div>
       </div>
-
-      <button className="btn-gold" style={{width:'100%',padding:'13px',fontSize:14}} onClick={()=>setShowConfirm(true)}>
-        Submit Exam
-      </button>
+      <button className="btn-gold" style={{width:'100%',padding:'13px',fontSize:14}} onClick={()=>setShowConfirm(true)}>Submit Exam</button>
     </div>
   );
 
   return(
     <div style={{position:'relative',zIndex:1}}>
-      {/* Exam topbar */}
       <div style={{background:'#fff',borderBottom:'1px solid #e8e4dc',padding:'0 16px',position:'sticky',top:56,zIndex:40}}>
         <div style={{maxWidth:960,margin:'0 auto',height:52,display:'flex',alignItems:'center',gap:16,justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -503,28 +514,21 @@ function MockExam({onBack,onFinish,major}){
               <span style={{fontSize:14}}>⏱</span>
               <span className={timerClass}>{fmtTime(timeLeft)}</span>
             </div>
-            <button className="mobile-nav-btn btn-outline" style={{padding:'6px 14px',fontSize:13}} onClick={()=>setShowNav(true)}>
-              Navigator
-            </button>
+            <button className="mobile-nav-btn btn-outline" style={{padding:'6px 14px',fontSize:13}} onClick={()=>setShowNav(true)}>Navigator</button>
           </div>
         </div>
       </div>
-
       <div className="exam-layout" style={{paddingTop:24}}>
-        {/* Main question area */}
         <div>
-          {/* Category label */}
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
             <span style={{fontSize:16}}>{categoryMeta[q.category].icon}</span>
             <span style={{fontSize:13,color:categoryMeta[q.category].color,fontWeight:600}}>{q.category}</span>
-            <span style={{fontSize:13,color:'#bbb'}}>·</span>
-            <span style={{fontSize:13,color:'#bbb'}}>Item {q.examNum} of {total}</span>
+            <span style={{fontSize:13,color:'#bbb'}}>· Item {q.examNum} of {total}</span>
           </div>
-
           <div className="card" style={{padding:'28px 28px 24px',marginBottom:16}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
               <p style={{margin:0,fontSize:17,fontWeight:500,lineHeight:1.65,color:'#1a1208',flex:1,paddingRight:16}}>{q.q}</p>
-              <button className="flag-btn" onClick={toggleFlag} title={flagged.has(current)?'Remove flag':'Flag for review'}>
+              <button className="flag-btn" onClick={()=>setFlagged(f=>{const n=new Set(f);n.has(current)?n.delete(current):n.add(current);return n;})}>
                 {flagged.has(current)?'🚩':'🏳'}
               </button>
             </div>
@@ -533,7 +537,7 @@ function MockExam({onBack,onFinish,major}){
                 let cls='choice-btn';
                 if(answers[current]===c)cls+=' selected';
                 return(
-                  <button key={i} className={cls} onClick={()=>handleAnswer(c)}>
+                  <button key={i} className={cls} onClick={()=>setAnswers(a=>({...a,[current]:c}))}>
                     <span className="choice-letter">{String.fromCharCode(65+i)}</span>
                     <span style={{flex:1,lineHeight:1.45}}>{c}</span>
                     {answers[current]===c&&<span style={{fontSize:16}}>●</span>}
@@ -542,24 +546,16 @@ function MockExam({onBack,onFinish,major}){
               })}
             </div>
           </div>
-
-          {/* Nav buttons */}
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
-            <button onClick={()=>setCurrent(c=>Math.max(0,c-1))} disabled={current===0}
-              className="btn-outline" style={{padding:'10px 20px',fontSize:14,opacity:current===0?.4:1}}>← Prev</button>
+            <button onClick={()=>setCurrent(c=>Math.max(0,c-1))} disabled={current===0} className="btn-outline" style={{padding:'10px 20px',fontSize:14,opacity:current===0?.4:1}}>← Prev</button>
             <span style={{flex:1,textAlign:'center',fontSize:13,color:'#999'}}>{current+1} / {total}</span>
             {current<total-1
               ?<button onClick={()=>setCurrent(c=>c+1)} className="btn-gold" style={{padding:'10px 20px',fontSize:14}}>Next →</button>
-              :<button onClick={()=>setShowConfirm(true)} className="btn-gold" style={{padding:'10px 20px',fontSize:14}}>Submit →</button>
-            }
+              :<button onClick={()=>setShowConfirm(true)} className="btn-gold" style={{padding:'10px 20px',fontSize:14}}>Submit →</button>}
           </div>
         </div>
-
-        {/* Sidebar */}
         <div className="sidebar-panel">{navPanel}</div>
       </div>
-
-      {/* Mobile nav modal */}
       {showNav&&(
         <div className="modal-overlay" onClick={()=>setShowNav(false)}>
           <div className="modal-box fade-in" onClick={e=>e.stopPropagation()} style={{maxWidth:340,maxHeight:'80vh',overflowY:'auto'}}>
@@ -568,8 +564,6 @@ function MockExam({onBack,onFinish,major}){
           </div>
         </div>
       )}
-
-      {/* Confirm submit modal */}
       {showConfirm&&(
         <div className="modal-overlay" onClick={()=>setShowConfirm(false)}>
           <div className="modal-box fade-in" onClick={e=>e.stopPropagation()}>
@@ -578,12 +572,12 @@ function MockExam({onBack,onFinish,major}){
               <h2 className="serif" style={{fontSize:24,margin:'0 0 8px'}}>Submit Exam?</h2>
               <p style={{color:'#6b5a3e',lineHeight:1.6,margin:0}}>
                 You have answered <strong>{answeredCount} of {total}</strong> questions.
-                {answeredCount<total&&<><br/><span style={{color:'#e65100',fontWeight:600}}>{total-answeredCount} unanswered</span> item{total-answeredCount!==1?'s':''} will be marked wrong.</>}
+                {answeredCount<total&&<><br/><span style={{color:'#e65100',fontWeight:600}}>{total-answeredCount} unanswered</span> items will be marked wrong.</>}
               </p>
             </div>
             <div style={{display:'flex',gap:12}}>
               <button className="btn-outline" style={{flex:1}} onClick={()=>setShowConfirm(false)}>Keep Going</button>
-              <button className="btn-gold" style={{flex:1}} onClick={()=>handleSubmit()}>Submit Now</button>
+              <button className="btn-gold" style={{flex:1}} onClick={doSubmit}>Submit Now</button>
             </div>
           </div>
         </div>
@@ -598,23 +592,18 @@ function MockExam({onBack,onFinish,major}){
 function ExamResults({results,elapsed,onRetake,onHome}){
   const [showReview,setShowReview]=useState(false);
   const [reviewCat,setReviewCat]=useState(null);
-  const [filter,setFilter]=useState('all'); // all | wrong | flagged (future)
-
+  const [filter,setFilter]=useState('all');
   const total=results.length;
   const correct=results.filter(r=>r.correct).length;
   const pct=Math.round(correct/total*100);
   const passed=pct>=75;
-
-  // Per-category breakdown
   const catStats={};
   results.forEach(r=>{
     if(!catStats[r.category])catStats[r.category]={correct:0,total:0};
     catStats[r.category].total++;
     if(r.correct)catStats[r.category].correct++;
   });
-
   const displayResults=filter==='wrong'?results.filter(r=>!r.correct):results;
-
   if(showReview){
     const catResults=reviewCat?displayResults.filter(r=>r.category===reviewCat):displayResults;
     return(
@@ -657,10 +646,8 @@ function ExamResults({results,elapsed,onRetake,onHome}){
       </div>
     );
   }
-
   return(
     <div className="fade-in" style={{maxWidth:680,margin:'0 auto',padding:'0 16px 60px'}}>
-      {/* Hero result */}
       <div className="card" style={{padding:'40px 36px',textAlign:'center',marginBottom:24,background:passed?'linear-gradient(135deg,#e8f5e9,#f1f8e9)':'linear-gradient(135deg,#fff8e1,#fafafa)'}}>
         <div style={{fontSize:64,marginBottom:12}}>{passed?'🏆':pct>=60?'📚':'💪'}</div>
         <h2 className="serif" style={{fontSize:38,margin:'0 0 4px',color:passed?'#1b5e20':'#2c1f0e'}}>{passed?'PASSED!':'Not Yet'}</h2>
@@ -674,8 +661,6 @@ function ExamResults({results,elapsed,onRetake,onHome}){
           <div className="progress-fill-exam" style={{width:pct+'%',background:passed?'linear-gradient(90deg,#43a047,#1b5e20)':'linear-gradient(90deg,#ef5350,#c62828)'}}/>
         </div>
       </div>
-
-      {/* Per-subject breakdown */}
       <h3 className="serif" style={{fontSize:22,marginBottom:16}}>Subject Breakdown</h3>
       <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:28}}>
         {Object.entries(catStats).map(([cat,stat])=>{
@@ -690,9 +675,7 @@ function ExamResults({results,elapsed,onRetake,onHome}){
                     <span style={{fontWeight:600,fontSize:14,color:'#2c1f0e'}}>{cat}</span>
                     <span style={{fontWeight:700,color,fontSize:14}}>{stat.correct}/{stat.total} · {cpct}%</span>
                   </div>
-                  <div className="score-bar-wrap">
-                    <div className="score-bar-fill" style={{width:cpct+'%',background:color}}/>
-                  </div>
+                  <div className="score-bar-wrap"><div className="score-bar-fill" style={{width:cpct+'%',background:color}}/></div>
                 </div>
               </div>
               <p style={{margin:0,fontSize:12,color:'#bbb'}}>{cpct>=75?'✅ Above passing':'⚠️ Below passing (75%)'} · {EXAM_CONFIG[cat]?.weight||0}% of total exam</p>
@@ -700,26 +683,21 @@ function ExamResults({results,elapsed,onRetake,onHome}){
           );
         })}
       </div>
-
-      {/* Weak areas */}
       {Object.entries(catStats).some(([,s])=>Math.round(s.correct/s.total*100)<75)&&(
         <div style={{background:'#fff3e0',border:'1px solid #ffcc80',borderRadius:12,padding:'16px 20px',marginBottom:28}}>
           <p style={{margin:'0 0 8px',fontWeight:600,fontSize:14,color:'#e65100'}}>📌 Focus Areas</p>
           <p style={{margin:0,fontSize:13,color:'#6b5a3e',lineHeight:1.7}}>
-            Review more in:{' '}
-            {Object.entries(catStats).filter(([,s])=>Math.round(s.correct/s.total*100)<75).map(([c])=>c).join(', ')}
+            Review more in: {Object.entries(catStats).filter(([,s])=>Math.round(s.correct/s.total*100)<75).map(([c])=>c).join(', ')}
           </p>
         </div>
       )}
-
-      {/* Actions */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-        <button className="btn-gold" style={{padding:'14px'}} onClick={()=>{setShowReview(true);setFilter('all')}}>📋 Review All Answers</button>
-        <button className="btn-outline" style={{padding:'14px'}} onClick={()=>{setShowReview(true);setFilter('wrong')}}>❌ Review Wrong Only</button>
+        <button className="btn-gold" style={{padding:'14px'}} onClick={()=>{setShowReview(true);setFilter('all')}}>📋 Review All</button>
+        <button className="btn-outline" style={{padding:'14px'}} onClick={()=>{setShowReview(true);setFilter('wrong')}}>❌ Wrong Only</button>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-        <button className="btn-gold" style={{padding:'14px',background:'linear-gradient(135deg,#5c6bc0,#283593)'}} onClick={onRetake}>🔄 Retake Exam</button>
-        <button className="btn-outline" style={{padding:'14px'}} onClick={onHome}>🏠 Back to Home</button>
+        <button className="btn-gold" style={{padding:'14px',background:'linear-gradient(135deg,#5c6bc0,#283593)'}} onClick={onRetake}>🔄 Retake</button>
+        <button className="btn-outline" style={{padding:'14px'}} onClick={onHome}>🏠 Home</button>
       </div>
     </div>
   );
@@ -739,24 +717,22 @@ function QuizView({category,questions,freeCount,hasAccess,onBack,onGateHit}){
   const q=questions[current];
   const total=questions.length;
   const pct=Math.round((score/history.length)*100)||0;
+  const meta=categoryMeta[category];
 
   const handleChoice=(choice)=>{
     if(answered)return;
     if(!hasAccess){
       if(usedRef.current>=FREE_LIMIT){onGateHit();return;}
-      incrementFreeCount(category);
-      usedRef.current++;
+      incrementFreeCount(category);usedRef.current++;
     }
     setSelected(choice);setAnswered(true);
     if(choice===q.answer)setScore(s=>s+1);
     setHistory(h=>[...h,{q:q.q,answer:q.answer,selected:choice,correct:choice===q.answer,rationale:q.rationale}]);
   };
-
   const next=()=>{
     if(current<total-1){setCurrent(c=>c+1);setSelected(null);setAnswered(false);}
     else setDone(true);
   };
-  const meta=categoryMeta[category];
 
   if(done)return(
     <div className="fade-in" style={{maxWidth:640,margin:'0 auto',padding:'0 16px 48px'}}>
@@ -839,7 +815,6 @@ function HomePage({onSelectCategory,onStartExam,user,hasAccess,onLogout,onShowLo
   const usage=getFreeUsage();
   return(
     <div style={{maxWidth:760,margin:'0 auto',padding:'0 16px 60px'}}>
-      {/* Hero */}
       <div style={{textAlign:'center',padding:'52px 0 40px'}}>
         <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'#fdf5e8',border:'1px solid #e8d9b8',borderRadius:30,padding:'6px 18px',marginBottom:24}}>
           <span style={{fontSize:13,color:'#a07840',fontWeight:600}}>📋 LET Review Hub 2026</span>
@@ -853,7 +828,7 @@ function HomePage({onSelectCategory,onStartExam,user,hasAccess,onLogout,onShowLo
         {user?(
           <div style={{display:'inline-flex',alignItems:'center',gap:12,background:'#fff',border:'1px solid #e8e4dc',borderRadius:40,padding:'8px 20px'}}>
             <span style={{fontSize:13,color:'#2c1f0e'}}>👤 {user.email}</span>
-            <span className={hasAccess?'badge-free':'badge-lock'}>{hasAccess?'✓ Full Access':'⏳ Pending'}</span>
+            <span className={hasAccess?'badge-free':'badge-lock'}>{hasAccess?'✓ Full Access':'⏳ Pending Approval'}</span>
             <button onClick={onLogout} style={{background:'none',border:'none',color:'#999',cursor:'pointer',fontSize:13}}>Sign out</button>
           </div>
         ):(
@@ -862,8 +837,6 @@ function HomePage({onSelectCategory,onStartExam,user,hasAccess,onLogout,onShowLo
           </div>
         )}
       </div>
-
-      {/* Mock Exam CTA */}
       <div style={{background:'linear-gradient(135deg,#e8eaf6,#c5cae9)',border:'2px solid #9fa8da',borderRadius:20,padding:'28px 32px',marginBottom:32,cursor:'pointer',transition:'all .2s'}}
         onClick={()=>hasAccess?onStartExam():onShowLock('exam')}>
         <div style={{display:'flex',alignItems:'center',gap:20,flexWrap:'wrap'}}>
@@ -874,15 +847,13 @@ function HomePage({onSelectCategory,onStartExam,user,hasAccess,onLogout,onShowLo
               <span className="badge-exam">Requires Login</span>
               <span style={{background:'#e8eaf6',color:'#283593',fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:20}}>80 items · 80 min</span>
             </div>
-            <p style={{margin:0,fontSize:14,color:'#3949ab',lineHeight:1.6}}>Full simulation of the Licensure Examination for Teachers with timer, question navigator, flagging, and per-subject score breakdown.</p>
+            <p style={{margin:0,fontSize:14,color:'#3949ab',lineHeight:1.6}}>Full simulation of the LET with timer, navigator, flagging, and per-subject score breakdown.</p>
           </div>
           <button className="btn-gold" style={{background:'linear-gradient(135deg,#5c6bc0,#283593)',flexShrink:0,padding:'12px 24px'}}>
             {hasAccess?'Take Exam →':'🔒 Log In First'}
           </button>
         </div>
       </div>
-
-      {/* Practice Quiz section */}
       <h3 className="serif" style={{fontSize:22,marginBottom:16}}>Practice by Subject</h3>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16,marginBottom:40}}>
         {categories.map(cat=>{
@@ -919,15 +890,8 @@ function HomePage({onSelectCategory,onStartExam,user,hasAccess,onLogout,onShowLo
           );
         })}
       </div>
-
-      {/* Feature pills */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:16}}>
-        {[
-          {icon:'📋',label:'Mock Board Exam',desc:'80 questions, timed, full breakdown'},
-          {icon:'💡',label:'Instant Rationales',desc:'Learn why each answer is correct'},
-          {icon:'🚩',label:'Flag & Review',desc:'Mark tricky questions to revisit'},
-          {icon:'📊',label:'Subject Breakdown',desc:'See your score per exam area'},
-        ].map(f=>(
+        {[{icon:'📋',label:'Mock Board Exam',desc:'80 questions, timed, full breakdown'},{icon:'💡',label:'Instant Rationales',desc:'Learn why each answer is correct'},{icon:'🚩',label:'Flag & Review',desc:'Mark tricky questions to revisit'},{icon:'📊',label:'Subject Breakdown',desc:'See your score per exam area'}].map(f=>(
           <div key={f.label} style={{background:'#fff',border:'1px solid #e8e4dc',borderRadius:12,padding:'18px 20px'}}>
             <div style={{fontSize:28,marginBottom:8}}>{f.icon}</div>
             <p style={{margin:'0 0 4px',fontWeight:600,fontSize:14,color:'#1a1208'}}>{f.label}</p>
@@ -943,7 +907,7 @@ function HomePage({onSelectCategory,onStartExam,user,hasAccess,onLogout,onShowLo
 // ROOT APP
 // ══════════════════════════════════════════════════════
 function App(){
-  const [page,setPage]=useState('home'); // home|quiz|exam|exam-results
+  const [page,setPage]=useState('home');
   const [selectedCat,setSelectedCat]=useState(null);
   const [quizQuestions,setQuizQuestions]=useState([]);
   const [examResults,setExamResults]=useState(null);
@@ -955,21 +919,19 @@ function App(){
   const [showExamSetup,setShowExamSetup]=useState(false);
   const [loading,setLoading]=useState(true);
 
+  const loadAccess=async(u)=>{
+    const access=await checkAccess(u.email);
+    setHasAccess(!!(access&&access.status==='approved'));
+  };
+
   useEffect(()=>{
     supabase.auth.getSession().then(async({data:{session}})=>{
-      if(session?.user){
-        setUser(session.user);
-        const access=await checkAccess(session.user.email);
-        setHasAccess(!!(access&&access.status==='approved'));
-      }
+      if(session?.user){setUser(session.user);await loadAccess(session.user);}
       setLoading(false);
     });
     const {data:sub}=supabase.auth.onAuthStateChange(async(event,session)=>{
-      if(session?.user){
-        setUser(session.user);
-        const access=await checkAccess(session.user.email);
-        setHasAccess(!!(access&&access.status==='approved'));
-      }else{setUser(null);setHasAccess(false);}
+      if(session?.user){setUser(session.user);await loadAccess(session.user);}
+      else{setUser(null);setHasAccess(false);}
     });
     return()=>sub.subscription.unsubscribe();
   },[]);
@@ -978,26 +940,19 @@ function App(){
     const used=getCategoryFreeCount(cat);
     if(!user&&used>=FREE_LIMIT){setLockReason('free');setShowLock(true);return;}
     if(user&&!hasAccess){setLockReason('pending');setShowLock(true);return;}
-    setSelectedCat(cat);
-    setQuizQuestions(shuffle(questionBank[cat]));
-    setPage('quiz');
+    setSelectedCat(cat);setQuizQuestions(shuffle(questionBank[cat]));setPage('quiz');
   };
 
   const handleShowLock=(reason)=>{
-    setLockReason(reason==='exam'?'exam-gate':'free');
-    setShowLock(true);
+    setLockReason(reason==='exam'?'exam-gate':'free');setShowLock(true);
   };
 
   const handleLoginSuccess=(u,access)=>{
     setUser(u);setHasAccess(access);setShowLock(false);
-    if(access){setShowExamSetup(true);}
+    if(access)setShowExamSetup(true);
   };
 
   const handleLogout=async()=>{await signOut();setUser(null);setHasAccess(false);setPage('home');};
-
-  const handleExamFinish=(results,elapsed)=>{
-    setExamResults(results);setExamElapsed(elapsed);setPage('exam-results');
-  };
 
   if(loading)return(
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -1007,7 +962,6 @@ function App(){
 
   return(
     <div style={{position:'relative',zIndex:1}}>
-      {/* Navbar */}
       <nav style={{background:'rgba(255,255,255,.88)',backdropFilter:'blur(12px)',borderBottom:'1px solid #e8e4dc',position:'sticky',top:0,zIndex:50,padding:'0 16px'}}>
         <div style={{maxWidth:960,margin:'0 auto',height:56,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <button onClick={()=>setPage('home')} style={{background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
@@ -1021,19 +975,14 @@ function App(){
         </div>
       </nav>
 
-      {/* Pages */}
       {page==='home'&&<HomePage onSelectCategory={handleSelectCategory} onStartExam={()=>setShowExamSetup(true)} user={user} hasAccess={hasAccess} onLogout={handleLogout} onShowLock={handleShowLock}/>}
       {page==='quiz'&&selectedCat&&<QuizView category={selectedCat} questions={quizQuestions} freeCount={getCategoryFreeCount(selectedCat)} hasAccess={hasAccess} onBack={()=>setPage('home')} onGateHit={()=>{setLockReason('free');setShowLock(true);}}/>}
-      {page==='exam'&&<MockExam onBack={()=>setPage('home')} onFinish={handleExamFinish}/>}
+      {page==='exam'&&<MockExam onFinish={(results,elapsed)=>{setExamResults(results);setExamElapsed(elapsed);setPage('exam-results');}}/>}
       {page==='exam-results'&&examResults&&<ExamResults results={examResults} elapsed={examElapsed} onRetake={()=>{setExamResults(null);setPage('exam');}} onHome={()=>setPage('home')}/>}
 
-      {/* Exam setup modal */}
-      {showExamSetup&&hasAccess&&<ExamSetupModal onClose={()=>setShowExamSetup(false)} onStart={(major)=>{setShowExamSetup(false);setPage('exam');}}/>}
-
-      {/* Lock modal */}
+      {showExamSetup&&hasAccess&&<ExamSetupModal onClose={()=>setShowExamSetup(false)} onStart={()=>{setShowExamSetup(false);setPage('exam');}}/>}
       {showLock&&<LockModal onClose={()=>setShowLock(false)} onLoginSuccess={handleLoginSuccess} reason={lockReason}/>}
 
-      {/* Footer */}
       <footer style={{textAlign:'center',padding:'32px 16px',color:'#bbb',fontSize:13}}>
         <p style={{margin:0}}>© 2026 LET Review Hub · For aspiring licensed professional teachers</p>
         <p style={{margin:'6px 0 0',color:'#f5a623',fontSize:12}}>⚠️ Unauthorized distribution or reselling is prohibited.</p>
@@ -1042,8 +991,7 @@ function App(){
   );
 }
 
-const root=ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
