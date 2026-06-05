@@ -5034,44 +5034,170 @@ function SetPicker({title,icon,onPick,onBack}){
 }
 
 /* ── Review Materials ── */
-function ReviewPage({onBack}){
-  return(
+function ReviewPage({ onBack, hasAccess, onGate }) {
+  return (
     <div className="fade-in">
       <div className="page-header">
         <div className="page-header-inner">
-          <button className="btn-ghost" onClick={onBack} style={{color:'rgba(255,255,255,.6)',marginRight:8}}>← Back</button>
-          <div className="page-header-icon" style={{background:'rgba(201,150,58,.2)'}}>📁</div>
+          <button
+            className="btn-ghost"
+            onClick={onBack}
+            style={{ color: "rgba(255,255,255,.6)", marginRight: 8 }}
+          >
+            ← Back
+          </button>
+
+          <div className="page-header-icon" style={{ background: "rgba(201,150,58,.2)" }}>
+            📁
+          </div>
+
           <div>
-            <h2 className="serif" style={{fontSize:26,color:'var(--white)',marginBottom:4}}>Review Materials</h2>
-            <p style={{fontSize:13,color:'rgba(255,255,255,.5)',margin:0}}>Access your study resources on Google Drive</p>
+            <h2 className="serif" style={{ fontSize: 26, color: "var(--white)", marginBottom: 4 }}>
+              Review Materials
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,.5)", margin: 0 }}>
+              Access your study resources on Google Drive
+            </p>
           </div>
         </div>
       </div>
-      <div className="section" style={{paddingBottom:72}}>
-        <h3 className="section-title" style={{marginBottom:6}}>Core Subjects</h3>
-        <p className="section-sub">Required for all LET examinees</p>
-        <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:36}}>
-          {[{key:'prof_ed',icon:'🎓',label:'Professional Education',color:'#a07840',bg:'#fdf5e8'},{key:'gen_ed',icon:'🌐',label:'General Education',color:'#1a3d7a',bg:'var(--blue-light)'}].map(s=>(
-            <a key={s.key} href={DRIVE_LINKS[s.key]} target="_blank" rel="noopener noreferrer" className="review-btn">
-              <div style={{width:48,height:48,borderRadius:14,background:s.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}}>{s.icon}</div>
-              <div style={{flex:1}}><p style={{margin:0,fontWeight:600,fontSize:15}}>{s.label}</p><p style={{margin:'3px 0 0',fontSize:12,color:'var(--text-light)'}}>Opens in Google Drive</p></div>
-              <span style={{color:'var(--gold)',fontSize:16,fontWeight:700}}>→</span>
-            </a>
-          ))}
-        </div>
-        <h3 className="section-title" style={{marginBottom:6}}>Major Subjects</h3>
-        <p className="section-sub">Secondary Education specializations</p>
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          {SEC_MAJORS.map(m=>(
-            <a key={m.id} href={DRIVE_LINKS[m.id]} target="_blank" rel="noopener noreferrer" className="review-btn">
-              <div style={{width:48,height:48,borderRadius:14,background:'var(--blue-light)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}}>{m.icon}</div>
-              <div style={{flex:1}}><p style={{margin:0,fontWeight:600,fontSize:15}}>{m.label}</p><p style={{margin:'3px 0 0',fontSize:12,color:'var(--text-light)'}}>Opens in Google Drive</p></div>
-              <span style={{color:'var(--gold)',fontSize:16,fontWeight:700}}>→</span>
-            </a>
-          ))}
-        </div>
-        <div style={{marginTop:24,background:'#fffbf0',border:'1px solid #e8d5a0',borderLeft:'4px solid var(--gold)',borderRadius:12,padding:'14px 18px'}}>
-          <p style={{margin:0,fontSize:13,color:'#6b5020',lineHeight:1.7}}><strong>Note:</strong> Replace the Google Drive folder links in the source code with your actual file URLs.</p>
+
+      <div className="section" style={{ paddingBottom: 72 }}>
+
+        {/* LOGIN GATE */}
+        {!hasAccess && (
+          <div style={{
+            background: "linear-gradient(135deg,var(--navy),var(--navy-light))",
+            borderRadius: 18,
+            padding: "40px 32px",
+            textAlign: "center",
+            marginBottom: 32
+          }}>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+            <h3 className="serif" style={{ fontSize: 24, color: "var(--white)", marginBottom: 10 }}>
+              Login Required
+            </h3>
+            <p style={{
+              color: "rgba(255,255,255,.6)",
+              fontSize: 14,
+              lineHeight: 1.8,
+              marginBottom: 24,
+              maxWidth: 380,
+              margin: "0 auto 24px"
+            }}>
+              Create a free account and get admin approval to access all review materials on Google Drive.
+            </p>
+            <button className="btn btn-primary" style={{ padding: "13px 32px" }} onClick={onGate}>
+              Log In / Sign Up
+            </button>
+          </div>
+        )}
+
+        {/* PROTECTED CONTENT WRAPPER */}
+        <div
+          style={{
+            filter: hasAccess ? "none" : "blur(3px)",
+            opacity: hasAccess ? 1 : 0.35,
+            pointerEvents: hasAccess ? "auto" : "none"
+          }}
+        >
+          {/* Core Subjects */}
+          <h3 className="section-title" style={{ marginBottom: 6 }}>
+            Core Subjects
+          </h3>
+          <p className="section-sub">Required for all LET examinees</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+            {[
+              { key: "prof_ed", icon: "🎓", label: "Professional Education", bg: "#fdf5e8" },
+              { key: "gen_ed", icon: "🌐", label: "General Education", bg: "var(--blue-light)" }
+            ].map(s => (
+              <a
+                key={s.key}
+                href={DRIVE_LINKS[s.key]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="review-btn"
+              >
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 14,
+                  background: s.bg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 22,
+                  flexShrink: 0
+                }}>
+                  {s.icon}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>{s.label}</p>
+                  <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--text-light)" }}>
+                    Opens in Google Drive
+                  </p>
+                </div>
+
+                <span style={{ color: "var(--gold)", fontSize: 16, fontWeight: 700 }}>→</span>
+              </a>
+            ))}
+          </div>
+
+          {/* Major Subjects */}
+          <h3 className="section-title" style={{ marginBottom: 6 }}>
+            Major Subjects
+          </h3>
+          <p className="section-sub">Secondary Education specializations</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {SEC_MAJORS.map(m => (
+              <a
+                key={m.id}
+                href={DRIVE_LINKS[m.id]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="review-btn"
+              >
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 14,
+                  background: "var(--blue-light)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 22,
+                  flexShrink: 0
+                }}>
+                  {m.icon}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>{m.label}</p>
+                  <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--text-light)" }}>
+                    Opens in Google Drive
+                  </p>
+                </div>
+
+                <span style={{ color: "var(--gold)", fontSize: 16, fontWeight: 700 }}>→</span>
+              </a>
+            ))}
+          </div>
+
+          <div style={{
+            marginTop: 24,
+            background: "#fffbf0",
+            border: "1px solid #e8d5a0",
+            borderLeft: "4px solid var(--gold)",
+            borderRadius: 12,
+            padding: "14px 18px"
+          }}>
+            <p style={{ margin: 0, fontSize: 13, color: "#6b5020", lineHeight: 1.7 }}>
+              <strong>Note:</strong> Replace the Google Drive folder links in the source code with your actual file URLs.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -5418,7 +5544,7 @@ function App(){
       {page==='home'&&<HomePage user={user} hasAccess={hasAccess} onTrack={t=>setPage(t)} onReview={()=>setPage('review')} onLogout={handleLogout} onGate={handleGate}/>}
       {page==='elementary'&&<ElementaryTrack hasAccess={hasAccess} onGate={handleGate} onBack={()=>setPage('home')}/>}
       {page==='secondary'&&<SecondaryTrack hasAccess={hasAccess} onGate={handleGate} onBack={()=>setPage('home')}/>}
-      {page==='review'&&<ReviewPage onBack={()=>setPage('home')}/>}
+  {page==='review'&&<ReviewPage onBack={()=>setPage('home')} hasAccess={hasAccess} onGate={handleGate}/>}
 
       {showAuth&&<AuthModal onClose={()=>setShowAuth(false)} onSuccess={handleAuthSuccess}/>}
 
